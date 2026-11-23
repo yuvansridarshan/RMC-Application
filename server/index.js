@@ -274,9 +274,9 @@ app.get('/api/applications', (req, res) => {
       params.push(quota);
     }
     if (search) {
-      query += ' AND (application_no LIKE ? OR candidate_name LIKE ? OR neet_roll_no LIKE ? OR student_email LIKE ? OR student_mobile LIKE ?)';
+      query += ' AND (application_no LIKE ? OR candidate_name LIKE ? OR neet_roll_no LIKE ? OR student_email LIKE ? OR student_mobile LIKE ? OR father_mobile LIKE ? OR mother_mobile LIKE ?)';
       const s = `%${search}%`;
-      params.push(s, s, s, s, s);
+      params.push(s, s, s, s, s, s, s);
     }
 
     query += ' ORDER BY id DESC';

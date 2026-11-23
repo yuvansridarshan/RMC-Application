@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Eye, CheckCircle2, XCircle, FileText, Printer, Building2, UserCheck, ShieldCheck, RefreshCw, Download, Award, Clock } from 'lucide-react';
+import { Search, Filter, Eye, CheckCircle2, XCircle, FileText, Printer, Building2, UserCheck, ShieldCheck, RefreshCw, Download, Award, Clock, Phone } from 'lucide-react';
 
 export default function OfficePortal({ onSelectPrint, onSelectEdit }) {
   const [applications, setApplications] = useState([]);
@@ -104,10 +104,15 @@ export default function OfficePortal({ onSelectPrint, onSelectEdit }) {
 
   const handleExportCSV = () => {
     if (applications.length === 0) return;
-    const headers = ['Application ID', 'Candidate Name', 'Gender', 'Category', 'NEET Roll', 'NEET Score', 'Quota', 'Status', 'Admission No'];
+    const headers = ['Application ID', 'Candidate Name', 'Student Mobile', 'Father Name', 'Father Mobile', 'Mother Name', 'Mother Mobile', 'Gender', 'Category', 'NEET Roll', 'NEET Score', 'Quota', 'Status', 'Admission No'];
     const rows = applications.map(a => [
       `"${a.application_no}"`,
       `"${a.candidate_name || ''}"`,
+      `"${a.student_mobile || ''}"`,
+      `"${a.father_name || ''}"`,
+      `"${a.father_mobile || ''}"`,
+      `"${a.mother_name || ''}"`,
+      `"${a.mother_mobile || ''}"`,
       `"${a.gender || ''}"`,
       `"${a.category || ''}"`,
       `"${a.neet_roll_no || ''}"`,
@@ -258,6 +263,7 @@ export default function OfficePortal({ onSelectPrint, onSelectEdit }) {
                 <tr>
                   <th className="px-4 py-3">Application ID &amp; Roll</th>
                   <th className="px-4 py-3">Candidate Particulars</th>
+                  <th className="px-4 py-3">Parent Contacts</th>
                   <th className="px-4 py-3">NEET 2026 Score</th>
                   <th className="px-4 py-3">Quota &amp; Category</th>
                   <th className="px-4 py-3">Type</th>
@@ -285,6 +291,39 @@ export default function OfficePortal({ onSelectPrint, onSelectEdit }) {
                           {app.student_mobile && (
                             <span className="text-[10px] text-slate-500 font-normal font-mono block">{app.student_mobile}</span>
                           )}
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-1.5">
+                          <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                            Father
+                          </span>
+                          <span className="font-mono text-slate-800 text-[11px] font-semibold">
+                            {app.father_mobile ? (
+                              <a href={`tel:${app.father_mobile}`} className="hover:text-blue-600 hover:underline">
+                                {app.father_mobile}
+                              </a>
+                            ) : (
+                              <span className="text-slate-400 font-sans italic text-[10px] font-normal">—</span>
+                            )}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-1.5">
+                          <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
+                            Mother
+                          </span>
+                          <span className="font-mono text-slate-800 text-[11px] font-semibold">
+                            {app.mother_mobile ? (
+                              <a href={`tel:${app.mother_mobile}`} className="hover:text-purple-600 hover:underline">
+                                {app.mother_mobile}
+                              </a>
+                            ) : (
+                              <span className="text-slate-400 font-sans italic text-[10px] font-normal">—</span>
+                            )}
+                          </span>
                         </div>
                       </div>
                     </td>
