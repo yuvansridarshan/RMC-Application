@@ -15,7 +15,7 @@ A full-stack, responsive, and secure web application meticulously engineered bas
   - Authentic 14-Page printable document replica view (`PrintableApplication.jsx`) formatted for standard A4 printing.
   - Office / Admin Scrutiny Portal for Administrative Officer and Dean verification.
   - Resume Draft & Application Tracking by Application ID, Email, or NEET Roll No.
-  - Annexure III Anti-Ragging Committee 14-member interactive contact directory.
+  - Annexure III Anti-Ragging Committee 14-member interactive contact directory. Yuvan
 
 - **Backend**: Node.js & Express.
   - Built-in `node:sqlite` relational database running in WAL mode with foreign key constraints.
