@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Filter, Eye, CheckCircle2, XCircle, FileText, Printer, Building2, UserCheck, ShieldCheck, RefreshCw, Download, Award, Clock, Phone } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Filter, Eye, CheckCircle2, XCircle, FileText, Printer, Building2, UserCheck, ShieldCheck, RefreshCw, Download, Award, Clock, Phone, FileSpreadsheet, ChevronDown } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function OfficePortal({ onSelectPrint, onSelectEdit }) {
   const [applications, setApplications] = useState([]);
@@ -21,6 +24,18 @@ export default function OfficePortal({ onSelectPrint, onSelectEdit }) {
     status: 'verified'
   });
   const [savingVerification, setSavingVerification] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target)) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const fetchApplications = async () => {
     setLoading(true);
@@ -104,9 +119,10 @@ export default function OfficePortal({ onSelectPrint, onSelectEdit }) {
 
   const handleExportCSV = () => {
     if (applications.length === 0) return;
-    const headers = ['Application ID', 'Candidate Name', 'Student Mobile', 'Father Name', 'Father Mobile', 'Mother Name', 'Mother Mobile', 'Gender', 'Category', 'NEET Roll', 'NEET Score', 'Quota', 'Status', 'Admission No'];
+    const headers = ['Application ID', 'Admission No', 'Candidate Name', 'Student Mobile', 'Father Name', 'Father Mobile', 'Mother Name', 'Mother Mobile', 'Gender', 'Category', 'NEET Roll', 'NEET Score', 'Quota', 'Type', 'Status'];
     const rows = applications.map(a => [
       `"${a.application_no}"`,
+      `"${a.admission_no || ''}"`,
       `"${a.candidate_name || ''}"`,
       `"${a.student_mobile || ''}"`,
       `"${a.father_name || ''}"`,
@@ -118,17 +134,150 @@ export default function OfficePortal({ onSelectPrint, onSelectEdit }) {
       `"${a.neet_roll_no || ''}"`,
       a.neet_marks || '',
       `"${a.allotted_quota || ''}"`,
-      `"${a.status || ''}"`,
-      `"${a.admission_no || ''}"`
+      `"${a.student_type || ''}"`,
+      `"${a.status || ''}"`
     ]);
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `RMC_MBBS_Admissions_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `RMC_MBBS_Admissions_Roster_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setShowExportMenu(false);
+  };
+
+  const handleExportXLSX = () => {
+    if (applications.length === 0) return;
+    const data = applications.map(a => ({
+      'Application ID': a.application_no || '',
+      'Admission No': a.admission_no || 'Pending',
+      'Candidate Name': (a.candidate_name || '').toUpperCase(),
+      'Student Mobile': a.student_mobile || '',
+      "Father's Name": a.father_name || '',
+      "Father's Mobile": a.father_mobile || '',
+      "Mother's Name": a.mother_name || '',
+      "Mother's Mobile": a.mother_mobile || '',
+      'Gender': a.gender || '',
+      'Category': a.category || '',
+      'NEET Roll No': a.neet_roll_no || '',
+      'NEET Score': a.neet_marks !== null && a.neet_marks !== undefined ? a.neet_marks : '',
+      'Quota': a.allotted_quota || '',
+      'Type': a.student_type || '',
+      'Status': (a.status || '').toUpperCase()
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    
+    // Set friendly column widths
+    const colWidths = Object.keys(data[0]).map(key => ({
+      wch: Math.max(key.length, ...data.map(r => String(r[key] || '').length)) + 3
+    }));
+    worksheet['!cols'] = colWidths;
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Admissions Roster');
+    XLSX.writeFile(workbook, `RMC_MBBS_Admissions_Roster_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    setShowExportMenu(false);
+  };
+
+  const handleExportPDF = () => {
+    if (applications.length === 0) return;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Top Header Banner
+    doc.setFillColor(15, 41, 74); // #0f294a
+    doc.rect(0, 0, pageWidth, 54, 'F');
+
+    // College Name & Subtitle
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('RAJALAKSHMI MEDICAL COLLEGE HOSPITAL & RESEARCH INSTITUTE', 36, 22);
+
+    doc.setTextColor(45, 212, 191); // Teal
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('MBBS ADMISSION SCRUTINY REGISTRY — 2026–27', 36, 38);
+
+    doc.setTextColor(203, 213, 225); // Slate 300
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    doc.text(`Generated: ${dateStr}  |  Total Candidates: ${applications.length}`, pageWidth - 36, 38, { align: 'right' });
+
+    // Table Data
+    const tableHeaders = [
+      ['App ID', 'Candidate Name', 'Student No.', "Father's No.", "Mother's No.", 'NEET Roll', 'NEET Score', 'Quota', 'Cat', 'Type', 'Status', 'Adm No.']
+    ];
+
+    const tableRows = applications.map(a => [
+      a.application_no || '',
+      (a.candidate_name || 'Draft').toUpperCase(),
+      a.student_mobile || '—',
+      a.father_mobile || '—',
+      a.mother_mobile || '—',
+      a.neet_roll_no || '—',
+      a.neet_marks !== null && a.neet_marks !== undefined ? `${a.neet_marks}/720` : '—',
+      a.allotted_quota || '—',
+      a.category || '—',
+      a.student_type || '—',
+      (a.status || 'draft').toUpperCase(),
+      a.admission_no || '—'
+    ]);
+
+    autoTable(doc, {
+      startY: 65,
+      head: tableHeaders,
+      body: tableRows,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [15, 41, 74],
+        textColor: [255, 255, 255],
+        fontSize: 7.5,
+        fontStyle: 'bold',
+        halign: 'left',
+        cellPadding: 4
+      },
+      bodyStyles: {
+        fontSize: 7,
+        textColor: [30, 41, 59],
+        cellPadding: 3.5
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252]
+      },
+      columnStyles: {
+        0: { cellWidth: 80, fontStyle: 'bold' },
+        1: { cellWidth: 95 },
+        2: { cellWidth: 62 },
+        3: { cellWidth: 62 },
+        4: { cellWidth: 62 },
+        5: { cellWidth: 55 },
+        6: { cellWidth: 48, halign: 'center' },
+        7: { cellWidth: 50 },
+        8: { cellWidth: 32 },
+        9: { cellWidth: 48 },
+        10: { cellWidth: 48, halign: 'center' },
+        11: { cellWidth: 70 }
+      },
+      margin: { top: 65, right: 30, bottom: 30, left: 30 },
+      didDrawPage: () => {
+        doc.setFontSize(7.5);
+        doc.setTextColor(148, 163, 184);
+        doc.text(
+          `Rajalakshmi Medical College, Pennalur • Page ${doc.internal.getNumberOfPages()}`,
+          pageWidth / 2,
+          doc.internal.pageSize.getHeight() - 15,
+          { align: 'center' }
+        );
+      }
+    });
+
+    doc.save(`RMC_MBBS_Admissions_Roster_${new Date().toISOString().slice(0, 10)}.pdf`);
+    setShowExportMenu(false);
   };
 
   return (
@@ -149,14 +298,71 @@ export default function OfficePortal({ onSelectPrint, onSelectEdit }) {
         </div>
 
         <div className="flex items-center space-x-2 shrink-0">
-          <button
-            onClick={handleExportCSV}
-            className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all border border-white/20"
-            title="Download CSV roster"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export Roster</span>
-          </button>
+          <div className="relative" ref={exportMenuRef}>
+            <button
+              type="button"
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all border border-white/20 shadow-xs cursor-pointer"
+              title="Export admissions roster in various formats"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export Roster</span>
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showExportMenu ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showExportMenu && (
+              <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 z-50 text-slate-800 animate-fadeIn">
+                <div className="px-3.5 py-1.5 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Select Format
+                </div>
+
+                {/* Excel XLSX */}
+                <button
+                  type="button"
+                  onClick={handleExportXLSX}
+                  className="w-full text-left px-3.5 py-2.5 hover:bg-emerald-50 flex items-center space-x-3 transition-colors group cursor-pointer"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                    <FileSpreadsheet className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-900 group-hover:text-emerald-800">Excel Spreadsheet (.xlsx)</div>
+                    <div className="text-[10px] text-slate-500">Auto-formatted with all columns</div>
+                  </div>
+                </button>
+
+                {/* PDF Document */}
+                <button
+                  type="button"
+                  onClick={handleExportPDF}
+                  className="w-full text-left px-3.5 py-2.5 hover:bg-rose-50 flex items-center space-x-3 transition-colors group cursor-pointer border-t border-slate-100"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 group-hover:bg-rose-600 group-hover:text-white transition-colors">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-900 group-hover:text-rose-800">PDF Document (.pdf)</div>
+                    <div className="text-[10px] text-slate-500">Official landscape tabular roster</div>
+                  </div>
+                </button>
+
+                {/* CSV File */}
+                <button
+                  type="button"
+                  onClick={handleExportCSV}
+                  className="w-full text-left px-3.5 py-2.5 hover:bg-blue-50 flex items-center space-x-3 transition-colors group cursor-pointer border-t border-slate-100"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    <Download className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-900 group-hover:text-blue-800">CSV Spreadsheet (.csv)</div>
+                    <div className="text-[10px] text-slate-500">Standard comma-separated format</div>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
 
           <button
             onClick={fetchApplications}
